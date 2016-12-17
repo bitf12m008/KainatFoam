@@ -1,0 +1,48 @@
+function Get-Checksum($file) {
+    $cryptoProvider = New-Object "System.Security.Cryptography.MD5CryptoServiceProvider"
+	
+    $fileInfo = Get-Item $file
+	trap { ;
+	continue } $stream = $fileInfo.OpenRead()
+    if ($? -eq $false) {
+		# Couldn't open file for reading
+        return $null
+	}
+    
+    $bytes = $cryptoProvider.ComputeHash($stream)
+    $checksum = ''
+	foreach ($byte in $bytes) {
+		$checksum += $byte.ToString('x2')
+	}
+    
+	$stream.Close() | Out-Null
+    
+    return $checksum
+}
+
+function AddOrUpdate-Reference($scriptsFolderProjectItem, $fileNamePattern, $newFileName) {
+    try {
+        $referencesFileProjectItem = $scriptsFolderProjectItem.ProjectItems.Item("_references.js")
+    }
+    catch {
+        # _references.js file not found
+        return
+    }
+
+    if ($referencesFileProjectItem -eq $null) {
+        # _references.js file not found
+        return
+    }
+
+    $referencesFilePath = $referencesFileProjectItem.FileNames(1)
+    $referencesTempFilePath = Join-Path $env:TEMP "_references.tmp.js"
+
+    if ((Select-String $referencesFilePath -pattern $fileNamePattern).Length -eq 0) {
+        # File has no existing matching reference line
+        # Add the full reference line to the beginning of the file
+        "/// <reference path=""$newFileName"" />" | Add-Content $referencesTempFilePath -Encoding UTF8
+         Get-Content $referencesFilePath | Add-Content $referencesTempFilePath
+    }
+    else {
+        # Loop through file and replace old file name with new file name
+        Get-Content $refere
